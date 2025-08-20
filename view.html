@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>V2G Aggregator</title>
+  <style>
+    /* ====== Design Tokens (Light/Dark) ====== */
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-alt: #eef2f6;
+      --text: #0f172a;
+      --muted: #475569;
+      --brand: #2166c9;
+      --brand-2: #0e927c;
+      --accent: #b83280;
+      --ok: #2cae74;
+      --warn: #eab308;
+      --error: #ef4444;
+      --card: #f1f5f9;
+      --border: #e5e7eb;
+      --shadow: 0 10px 25px rgba(2, 6, 23, .08);
+      --radius: 14px;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1220;
+      --panel: #0f172a;
+      --panel-alt: #0b1324;
+      --text: #e5e7eb;
+      --muted: #9aa6b2;
+      --brand: #4ea1ff;
+      --brand-2: #39c7b0;
+      --accent: #ff71c3;
+      --ok: #47e7a0;
+      --warn: #ffd86b;
+      --error: #ff7a7a;
+      --card: #0b1324;
+      --border: #1f2937;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+    }* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 "Inter", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+/* ====== App Shell ====== */
+.app { display: grid; grid-template-columns: 260px 1fr; min-height: 100dvh; }
+@media (max-width: 1024px) { .app { grid-template-columns: 80px 1fr; } }
+
+/* Sidebar */
+.sidebar {
+  position: sticky; top: 0; height: 100dvh; padding: 18px; background: var(--panel);
+  border-right: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.logo { display: flex; gap: 10px; align-items: center; font-weight: 800; letter-spacing: .3px; }
+.logo-badge {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-weight: 900;
+  box-shadow: 0 6px 16px rgba(33,102,201,.35);
+}
+.nav { margin-top: 24px; display: grid; gap: 6px; }
+.nav a {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+  color: var(--muted); text-decoration: none; transition: .2s ease; font-weight: 600;
+}
+.nav a:hover { background: var(--panel-alt); color: var(--text); }
+.nav a.active { background: linear-gradient(90deg, rgba(33,102,201,.12), transparent); color: var(--brand); }
+.nav svg { width: 18px; height: 18px; opacity: .9; }
+
+/* Header */
+.header {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  padding: 18px 22px; position: sticky; top: 0; z-index: 10; background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.search {
+  display: flex; align-items: center; gap: 10px; background: var(--panel);
+  padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.search input { border: 0; outline: 0; flex: 1; background: transparent; color: var(--text); }
+.actions { display: flex; gap: 10px; align-items: center; }
+.btn {
+  border: 1px solid var(--border); background: var(--panel); padding: 10px 12px; border-radius: 12px;
+  display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700;
+  box-shadow: var(--shadow);
+}
+.btn.primary { background: var(--brand); color: #fff; border-color: transparent; }
+
+/* Main */
+.main { padding: 22px; }
+
+/* KPI Cards */
+.kpis {
+  display: grid; gap: 16px; grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1200px){ .kpis { grid-template-columns: repeat(2, 1fr);} }
+@media (max-width: 640px){ .kpis { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px; position: relative; overflow: hidden;
+}
+.card h4 { margin: 0; font-size: 13px; color: var(--muted); }
+.card .value { margin-top: 6px; font-size: 28px; font-weight: 800; letter-spacing: .2px; }
+.trend { font-size: 12px; margin-top: 4px; color: var(--muted); }
+
+/* Grid: Flow + Charts + Schedule */
+.layout {
+  display: grid; gap: 16px; grid-template-columns: 1.2fr 1fr; grid-auto-rows: min-content;
+  margin-top: 18px;
+}
+@media (max-width: 1200px){ .layout { grid-template-columns: 1fr; } }
+
+.section-title { font-weight: 800; margin: 6px 0 12px; display: flex; align-items: center; gap: 10px; }
+.section-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px rgba(33,102,201,.15); }
+
+/* Architecture Flow */
+.flow-box { padding: 14px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.flow { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 12px; align-items: center; }
+.module { background: var(--panel-alt); border: 1px dashed var(--border); border-radius: 12px; padding: 10px; text-align: center; font-weight: 700; }
+.arrow { text-align: center; font-size: 20px; color: var(--brand); }
+
+/* Tech Stack Box */
+.stack { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
+.stack strong { color: var(--muted); }
+.stack code { background: var(--card); padding: 2px 6px; border-radius: 6px; }
+
+/* Simple Line Chart (Canvas) */
+.chart-card canvas { width: 100%; height: 220px; }
+
+/* Schedule Board */
+.schedule {
+  display: grid; gap: 10px; grid-template-columns: 120px 1fr; align-items: start;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow);
+}
+.timeline { display: grid; grid-template-rows: repeat(24, 42px); gap: 6px; }
+.hour { color: var(--muted); font-size: 12px; text-align: right; padding-right: 6px; }
+.slots { position: relative; border-left: 1px dashed var(--border); min-height: 24*42px; }
+.event { position: absolute; left: 8px; right: 8px; border-radius: 10px; padding: 8px 10px; color: #fff; cursor: grab; user-select: none; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.event.charge { background: linear-gradient(135deg, var(--brand), var(--brand-2)); }
+.event.discharge { background: linear-gradient(135deg, #8b5cf6, var(--accent)); }
+
+/* Alerts / Activity */
+.rightcol { display: grid; gap: 16px; }
+.list { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); }
+.list-item { display:flex; align-items:center; gap:10px; padding:10px; border-radius: 10px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--card); border:1px solid var(--border); }
+
+/* Footer */
+.footer { padding: 16px 22px; color: var(--muted); text-align: center; }
+
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo" title="V2G Aggregator">
+        <div class="logo-badge">V2G</div>
+        <div class="logo-title">Aggregator</div>
+      </div>
+      <nav class="nav">
+        <a href="#overview" class="active">🏠 Overview</a>
+        <a href="#assets">🚗 Assets</a>
+        <a href="#schedule">🗓️ Schedule</a>
+        <a href="#markets">📈 Markets</a>
+        <a href="#settings">⚙️ Settings</a>
+      </nav>
+    </aside><!-- Content -->
+<section>
+  <!-- Header -->
+  <div class="header">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10.5" cy="10.5" r="7" stroke="currentColor" stroke-width="2"/></svg>
+      <input id="searchInput" placeholder="Search vehicles, chargers, sites…" />
+    </div>
+    <div class="actions">
+      <button class="btn" id="themeBtn" title="Toggle theme">🌓 Theme</button>
+      <button class="btn primary" id="newEventBtn">＋ New Event</button>
+    </div>
+  </div>
+
+  <main class="main">
+    <!-- KPI CARDS -->
+    <div class="kpis">
+      <div class="card">
+        <h4>Active EVs</h4>
+        <div class="value" id="kpi-evs">412</div>
+        <div class="trend">+2.4% today</div>
+      </div>
+      <div class="card">
+        <h4>Grid Events</h4>
+        <div class="value" id="kpi-events">7</div>
+        <div class="trend">Demand Response Window</div>
+      </div>
+      <div class="card chart-card">
+        <h4>Revenue (Today)</h4>
+        <div class="value" id="kpi-rev">$12,480</div>
+        <canvas id="revChart" aria-label="Revenue sparkline" role="img"></canvas>
+      </div>
+      <div class="card">
+        <h4>CO₂ Saved</h4>
+        <div class="value" id="kpi-co2">6.8 t</div>
+        <div class="trend">vs. baseline</div>
+      </div>
+    </div>
+
+
+        <!-- Architecture Flow -->
+        <div class="flow-box" style="margin-top:16px;">
+          <div class="section-title"><span class="dot"></span>Architecture Flow</div>
+
+          <div class="flow" aria-label="EVs to Stations">
+            <div class="module">EVs & Chargers<br/><small>(ISO 15118, CHAdeMO)</small></div>
+            <div class="arrow">⟶</div>
+            <div class="module">Smart Charging Stations<br/><small>(OCPP 2.0)</small></div>
+          </div>
+          <div class="flow">
+            <div class="module">Realtime Telemetry<br/><small>Kafka / MQTT</small></div>
+            <div class="arrow">⟶</div>
+            <div class="module">Data Layer<br/><small>TimescaleDB, S3</small></div>
+          </div>
+          <div class="flow">
+            <div class="module">Control & Optimization Engine<br/><small>MPC / AI / ML</small></div>
+            <div class="arrow">⟶</div>
+            <div class="module">Grid & Market Integration<br/><small>REST / gRPC</small></div>
+          </div>
+          <div class="flow">
+            <div class="module">Security & Settlement<br/><small>Blockchain / Smart Contracts</small></div>
+            <div class="arrow">⟶</div>
+            <div class="module">External APIs & Middleware<br/><small>Docker / Kubernetes</small></div>
+          </div>
+          <div class="flow">
+            <div class="module">User Interface Layer<br/><small>Fleet Portal (React)</small></div>
+            <div class="arrow">⟶</div>
+            <div class="module">Mobile App<br/><small>Ops On‑the‑Go</small></div>
+          </div>
+        </div>
+
+        <!-- Schedule Board -->
+        <div class="section-title" id="schedule" style="margin-top:16px;"><span class="dot"></span>Charge/Discharge Schedule</div>
+        <div class="schedule">
+          <div class="timeline">
+            <!-- Hours column -->
+            <div class="hour">00:00</div>
+            <div class="hour">01:00</div>
+            <div class="hour">02:00</div>
+            <div class="hour">03:00</div>
+            <div class="hour">04:00</div>
+            <div class="hour">05:00</div>
+            <div class="hour">06:00</div>
+            <div class="hour">07:00</div>
+            <div class="hour">08:00</div>
+            <div class="hour">09:00</div>
+            <div class="hour">10:00</div>
+            <div class="hour">11:00</div>
+            <div class="hour">12:00</div>
+            <div class="hour">13:00</div>
+            <div class="hour">14:00</div>
+            <div class="hour">15:00</div>
+            <div class="hour">16:00</div>
+            <div class="hour">17:00</div>
+            <div class="hour">18:00</div>
+            <div class="hour">19:00</div>
+            <div class="hour">20:00</div>
+            <div class="hour">21:00</div>
+            <div class="hour">22:00</div>
+            <div class="hour">23:00</div>
+          </div>
+          <div class="slots" id="slots" aria-label="Draggable events area">
+            <!-- Seed events -->
+            <div class="event charge" data-start="6" data-end="8" style="top: calc(6*42px + 6px); height: calc(2*42px - 6px);">Charge – Depot A</div>
+            <div class="event discharge" data-start="18" data-end="20" style="top: calc(18*42px + 6px); height: calc(2*42px - 6px);">Discharge – DR Market</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Activity & Alerts -->
+      <div class="rightcol">
+        <div class="list" id="markets">
+          <div class="section-title"><span class="dot"></span>Live Markets</div>
+          <div class="list-item">
+            <span class="badge">NEM (AU)</span>
+            <div style="font-weight:700;">Price: <span id="px1">$118/MWh</span></div>
+          </div>
+          <div class="list-item">
+            <span class="badge">CAISO</span>
+            <div style="font-weight:700;">Price: <span id="px2">$92/MWh</span></div>
+          </div>
+          <div class="list-item">
+            <span class="badge">PJM</span>
+            <div style="font-weight:700;">Price: <span id="px3">$76/MWh</span></div>
+          </div>
+        </div>
+
+        <div class="list">
+          <div class="section-title"><span class="dot"></span>Alerts & Health</div>
+          <div class="list-item" style="justify-content:space-between;">
+            <div>Battery SoH below 80% on Site‑12</div>
+            <span class="badge" style="background:rgba(234,179,8,.15); border-color:transparent; color:var(--warn);">⚠︎ Check</span>
+          </div>
+          <div class="list-item" style="justify-content:space-between;">
+            <div>ISO event window opened (17:00–20:00)</div>
+            <span class="badge" style="background:rgba(33,102,201,.15); border-color:transparent; color:var(--brand);">Live</span>
+          </div>
+          <div class="list-item" style="justify-content:space-between;">
+            <div>3 chargers offline at Depot‑B</div>
+            <span class="badge" style="background:rgba(239,68,68,.15); border-color:transparent; color:var(--error);">Action</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Notes</h4>
+          <p style="margin:.5em 0 0;color:var(--muted)">Drag events on the schedule to reslot hours. Click “＋ New Event” to add a template charge/discharge block. Use 🌓 to toggle dark mode.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">©️ 2025 V2G Aggregator • Hyperline UI • Built for quick stakeholder demos</footer>
+  </main>
+</section>
+
+  </div>  <script>
+    // ====== Theme Toggle ======
+    const root = document.documentElement;
+    const themeBtn = document.getElementById('themeBtn');
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
+    themeBtn.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.body.setAttribute('data-theme', current);
+      localStorage.setItem('theme', current);
+    });
+
+    // ====== KPI Sparkline (vanilla canvas) ======
+    const canvas = document.getElementById('revChart');
+    const ctx = canvas.getContext('2d');
+    function drawChart(values){
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = w * devicePixelRatio; canvas.height = h * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      ctx.clearRect(0,0,w,h);
+      const max = Math.max(...values), min = Math.min(...values);
+      const xStep = w/(values.length-1);
+      ctx.beginPath();
+      values.forEach((v,i)=>{
+        const x = i*xStep;
+        const y = h - ((v-min)/(max-min+1e-6))*h;
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      });
+      ctx.lineWidth = 2; ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--brand');
+      ctx.stroke();
+      // gradient fill
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0, getComputedStyle(document.body).getPropertyValue('--brand'));
+      g.addColorStop(1, 'transparent');
+      ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+    }
+    const series = Array.from({length: 32}, ()=> 800 + Math.random()*600);
+    drawChart(series);
+    window.addEventListener('resize', ()=> drawChart(series));
+
+    // ====== Fake market tickers ======
+    function randAround(n, d=3){ return (n + (Math.random()-0.5)*d).toFixed(0); }
+    setInterval(()=>{
+      document.getElementById('px1').textContent = `$${randAround(118)}/MWh`;
+      document.getElementById('px2').textContent = `$${randAround(92)}/MWh`;
+      document.getElementById('px3').textContent = `$${randAround(76)}/MWh`;
+    }, 3000);
+
+    // ====== Schedule: Drag to move events (hour slots) ======
+    const slots = document.getElementById('slots');
+    let dragging = null; let startY = 0; let startTop = 0;
+
+    function posToHour(y){
+      const rect = slots.getBoundingClientRect();
+      const rel = Math.max(0, Math.min(y - rect.top, rect.height - 1));
+      return Math.round(rel / 42); // 42px row height
+    }
+
+    function setEventPosition(el, start, end){
+      el.dataset.start = start; el.dataset.end = end;
+      el.style.top = `calc(${start}*42px + 6px)`;
+      el.style.height = `calc(${end-start}*42px - 6px)`;
+      el.setAttribute('aria-label', `${el.textContent} from ${String(start).padStart(2,'0')}:00 to ${String(end).padStart(2,'0')}:00`);
+    }
+
+    slots.querySelectorAll('.event').forEach(ev => {
+      ev.addEventListener('pointerdown', (e)=>{
+        dragging = ev; startY = e.clientY; startTop = ev.offsetTop; ev.setPointerCapture(e.pointerId);
+        ev.style.cursor = 'grabbing';
+      });
+    });
+
+    slots.addEventListener('pointermove', (e)=>{
+      if(!dragging) return;
+      const delta = e.clientY - startY;
+      const rows = Math.round(delta/42);
+      const newStart = Math.max(0, Math.min(23, Number(dragging.dataset.start) + rows));
+      const dur = Number(dragging.dataset.end) - Number(dragging.dataset.start);
+      const newEnd = Math.max(newStart + 1, Math.min(24, newStart + dur));
+      setEventPosition(dragging, newStart, newEnd);
+    });
+
+    window.addEventListener('pointerup', ()=>{ if(dragging){ dragging.style.cursor = 'grab'; dragging = null; }});
+
+    // ====== Create new event template ======
+    document.getElementById('newEventBtn').addEventListener('click', ()=>{
+      const el = document.createElement('div');
+      el.className = 'event charge'; el.textContent = 'Charge – New Block';
+      const start = 9 + Math.floor(Math.random()*3); const end = start + 2;
+      el.setAttribute('role','button'); el.tabIndex = 0;
+      setEventPosition(el, start, end);
+      el.addEventListener('pointerdown', (e)=>{ dragging = el; startY = e.clientY; startTop = el.offsetTop; el.setPointerCapture(e.pointerId); el.style.cursor='grabbing'; });
+      slots.appendChild(el);
+    });
+  </script></body>
+</html>
